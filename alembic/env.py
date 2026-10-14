@@ -6,6 +6,9 @@ from sqlalchemy import pool
 from alembic import context
 from app.database.database import Base,db_url
 
+# register all models on Base.metadata for autogenerate (see app/database/models.py)
+import app.database.models  # noqa: F401
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
