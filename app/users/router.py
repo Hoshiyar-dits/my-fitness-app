@@ -4,6 +4,6 @@ from app.users.service import UserService
 
 router = APIRouter(prefix="/user", tags=['user'])
 
-@router.post("/")
-def login(data: CreateUser):
+@router.post("")
+def create_user(data: CreateUser):
     return UserService.create_user(data)
