@@ -1,15 +1,20 @@
 from app.database.database import get_db
 from app.users.models.user import User
 from app.users.models.user_profiles import UserProfile
-from fastapi import HTTPException, Depends
+from fastapi import Depends
 from sqlalchemy.orm import Session
 class UserRepository():
     def __init__(self, db: Session = Depends(get_db)):
         self.db = db
 
-    def create(self, data):
+    def create(self, data, hashed_password: str):
         try:
-            user = User(name=data.name, email=data.email, password=data.password)
+            user = User(
+                first_name=data.first_name,
+                last_name=data.last_name,
+                email=data.email,
+                password=hashed_password,
+            )
             self.db.add(user)
             self.db.commit()
             self.db.refresh(user)
@@ -19,7 +24,7 @@ class UserRepository():
             raise
 
     def get_by_email(self, email: str):
-        return self.db.query(User).filter(User.email == email).first()
+        return self.db.query(User).filter(User.email == email, User.deleted_at.is_(None)).first()
 
     def get_profile(self, user_id: int):
         return self.db.query(UserProfile).filter(UserProfile.user_id == user_id).first()

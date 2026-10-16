@@ -1,15 +1,17 @@
 from fastapi import Depends, HTTPException
-from app.database.database import get_db
+from pwdlib import PasswordHash
 from app.users.repository import UserRepository
 
-db = get_db()
+password_hash = PasswordHash.recommended()
 
 class UserService():
-    def __init__(self,repository: UserRepository):
+    def __init__(self, repository: UserRepository = Depends()):
         self.repository = repository
 
     def create_user(self, data):
-        return self.repository.create(data)
+        if self.repository.get_by_email(data.email):
+            raise HTTPException(status_code=409, detail="Email already registered")
+        return self.repository.create(data, password_hash.hash(data.password))
 
     def get_profile(self, user_id: int):
         profile = self.repository.get_profile(user_id)
