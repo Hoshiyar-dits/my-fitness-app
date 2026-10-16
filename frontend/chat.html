@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FitTrack – AI coach</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+  <div id="nav"></div>
+
+  <main class="container pb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h1 class="h4 mb-0">AI coach</h1>
+        <div class="small text-muted">Knows your profile and the workouts, meals and weight you've logged.</div>
+      </div>
+      <button class="btn btn-outline-secondary btn-sm" id="clearBtn">Clear chat</button>
+    </div>
+
+    <div id="alert"></div>
+
+    <div class="card shadow-sm">
+      <div class="card-body chat-box" id="chatBox"></div>
+      <div class="card-footer bg-white">
+        <div class="d-flex flex-wrap gap-2 mb-2" id="suggestions">
+          <button class="btn btn-sm btn-outline-primary suggestion">How did my week go?</button>
+          <button class="btn btn-sm btn-outline-primary suggestion">Is my diet good for my workouts?</button>
+          <button class="btn btn-sm btn-outline-primary suggestion">What should I train tomorrow?</button>
+        </div>
+        <form id="chatForm" class="d-flex gap-2">
+          <input class="form-control" id="chatInput" placeholder="Ask about your workouts, meals or progress…" maxlength="4000" autocomplete="off" required>
+          <button class="btn btn-primary" type="submit" id="sendBtn">Send</button>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/api.js"></script>
+  <script>
+    requireAuth();
+    renderNav("chat.html");
+
+    const chatBox = document.getElementById("chatBox");
+    const input = document.getElementById("chatInput");
+    const sendBtn = document.getElementById("sendBtn");
+
+    // Minimal, safe formatting for AI replies: escape first, then **bold**, bullet lists and line breaks.
+    function formatReply(text) {
+      const lines = escapeHtml(text).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").split("\n");
+      let html = "", inList = false;
+      for (const line of lines) {
+        const item = line.match(/^\s*(?:[-*•]|\d+\.)\s+(.*)$/);
+        if (item) {
+          if (!inList) { html += "<ul>"; inList = true; }
+          html += `<li>${item[1]}</li>`;
+        } else {
+          if (inList) { html += "</ul>"; inList = false; }
+          html += line.trim() ? `${line}<br>` : "<br>";
+        }
+      }
+      if (inList) html += "</ul>";
+      return html.replace(/(<br>)+$/, "");
+    }
+
+    function addMessage(role, content) {
+      const div = document.createElement("div");
+      div.className = `chat-msg ${role}`;
+      div.innerHTML = role === "assistant" ? formatReply(content) : escapeHtml(content);
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+      return div;
+    }
+
+    function showWelcome() {
+      chatBox.innerHTML = "";
+      addMessage("assistant", "Hi! I'm your fitness coach. Ask me how your week is going, whether your meals support your training, or what to do next.");
+    }
+
+    async function loadHistory() {
+      const messages = await api("/chat/history?limit=50");
+      if (!messages.length) return showWelcome();
+      chatBox.innerHTML = "";
+      messages.forEach(m => addMessage(m.role, m.content));
+    }
+
+    async function send(text) {
+      text = text.trim();
+      if (!text) return;
+      input.value = "";
+      sendBtn.disabled = true; input.disabled = true;
+
+      const userBubble = addMessage("user", text);
+      const typing = document.createElement("div");
+      typing.className = "chat-msg assistant typing";
+      typing.innerHTML = "<span></span><span></span><span></span>";
+      chatBox.appendChild(typing);
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      try {
+        const res = await api("/chat", { method: "POST", body: { message: text } });
+        typing.remove();
+        addMessage("assistant", res.assistant_message.content);
+      } catch (err) {
+        typing.remove();
+        userBubble.remove();
+        input.value = text;  // give the message back so it can be resent
+        showAlert("alert", err.message);
+      } finally {
+        sendBtn.disabled = false; input.disabled = false; input.focus();
+      }
+    }
+
+    document.getElementById("chatForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      send(input.value);
+    });
+
+    document.querySelectorAll(".suggestion").forEach(btn =>
+      btn.addEventListener("click", () => send(btn.textContent)));
+
+    document.getElementById("clearBtn").addEventListener("click", async () => {
+      if (!confirm("Clear the whole conversation?")) return;
+      try {
+        await api("/chat/history", { method: "DELETE" });
+        showWelcome();
+      } catch (err) {
+        showAlert("alert", err.message);
+      }
+    });
+
+    loadHistory().catch(err => showAlert("alert", err.message));
+  </script>
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FitTrack – Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+  <div id="nav"></div>
+
+  <main class="container pb-5">
+    <div id="alert"></div>
+
+    <!-- shown only when the user has no profile yet -->
+    <div class="card shadow-sm mb-4 d-none" id="profileCard">
+      <div class="card-body">
+        <h2 class="h5">Complete your profile</h2>
+        <p class="text-muted small">This helps the AI coach give you better advice.</p>
+        <form id="profileForm" class="row g-3">
+          <div class="col-sm-6 col-lg-3">
+            <label class="form-label" for="dob">Date of birth</label>
+            <input class="form-control" id="dob" name="date_of_birth" type="date" required>
+          </div>
+          <div class="col-sm-6 col-lg-3">
+            <label class="form-label" for="height">Height (cm)</label>
+            <input class="form-control" id="height" name="height_cm" type="number" step="0.1" min="50" max="300" required>
+          </div>
+          <div class="col-sm-6 col-lg-3">
+            <label class="form-label" for="gender">Gender</label>
+            <input class="form-control" id="gender" name="gender" maxlength="30" placeholder="Optional">
+          </div>
+          <div class="col-sm-6 col-lg-3">
+            <label class="form-label" for="activity">Activity level</label>
+            <select class="form-select" id="activity" name="activity_level" required>
+              <option value="sedentary">Sedentary</option>
+              <option value="light">Light</option>
+              <option value="moderate" selected>Moderate</option>
+              <option value="active">Active</option>
+              <option value="very_active">Very active</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <button class="btn btn-primary" type="submit">Save profile</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h1 class="h4 mb-0">Today <small class="text-muted fs-6" id="todayLabel"></small></h1>
+      <a class="btn btn-primary btn-sm" href="log.html">+ Log activity</a>
+    </div>
+
+    <div class="row g-3 mb-4" id="todayStats">
+      <div class="col-12 text-center text-muted py-4">Loading…</div>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-lg-8">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <h2 class="h5 mb-3">This week</h2>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Day</th>
+                    <th class="text-end">Workout min</th>
+                    <th class="text-end">kcal in</th>
+                    <th class="text-end">kcal burned</th>
+                    <th class="text-end">Net</th>
+                    <th class="text-end">Weight</th>
+                  </tr>
+                </thead>
+                <tbody id="weekTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-4">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <h2 class="h5 mb-3">Week vs last week</h2>
+            <ul class="list-group list-group-flush" id="weekCompare"></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/api.js"></script>
+  <script>
+    requireAuth();
+    renderNav("dashboard.html");
+
+    function statCard(label, value, sub = "") {
+      return `
+        <div class="col-6 col-md-4 col-xl-2">
+          <div class="card shadow-sm stat-card h-100">
+            <div class="card-body">
+              <div class="stat-label">${label}</div>
+              <div class="stat-value">${value}</div>
+              <div class="small text-muted">${sub}</div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function compareRow(label, current, previous, unit = "") {
+      const diff = current - previous;
+      const badge = diff === 0
+        ? `<span class="badge text-bg-secondary">same</span>`
+        : `<span class="badge ${diff > 0 ? "text-bg-success" : "text-bg-warning"}">${diff > 0 ? "+" : ""}${diff}${unit}</span>`;
+      return `
+        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+          <span>${label}</span>
+          <span><strong>${current}${unit}</strong> ${badge}</span>
+        </li>`;
+    }
+
+    async function loadDashboard() {
+      const d = await api("/dashboard");
+      const t = d.today;
+
+      document.getElementById("todayLabel").textContent = formatDay(t.date, { weekday: "long", month: "long", day: "numeric" });
+      document.getElementById("todayStats").innerHTML = [
+        statCard("Calories in", t.calories_consumed, `${t.meals_count} meal${t.meals_count === 1 ? "" : "s"}`),
+        statCard("Calories burned", t.calories_burned, `${t.workouts_count} workout${t.workouts_count === 1 ? "" : "s"}`),
+        statCard("Net calories", t.net_calories, "in − burned"),
+        statCard("Workout time", `${t.workout_minutes}<small class="fs-6"> min</small>`),
+        statCard("Streak", `${d.workout_streak_days}<small class="fs-6"> day${d.workout_streak_days === 1 ? "" : "s"}</small>`, "days in a row"),
+        statCard("Weight", d.latest_weight_kg != null ? `${d.latest_weight_kg}<small class="fs-6"> kg</small>` : "—",
+          d.latest_weight_date ? formatDay(d.latest_weight_date) : "not logged"),
+      ].join("");
+
+      const maxMinutes = Math.max(60, ...d.this_week.days.map(x => x.workout_minutes));
+      const today = todayStr();
+      document.getElementById("weekTable").innerHTML = d.this_week.days.map(day => {
+        const future = day.date > today;
+        const pct = Math.round((day.workout_minutes / maxMinutes) * 100);
+        return `
+          <tr class="${day.date === today ? "table-primary" : ""} ${future ? "text-muted" : ""}">
+            <td>${formatDay(day.date)}</td>
+            <td class="text-end" style="min-width:120px">
+              ${day.workout_minutes}
+              <div class="progress week-bar mt-1"><div class="progress-bar bg-success" style="width:${pct}%"></div></div>
+            </td>
+            <td class="text-end">${day.calories_consumed}</td>
+            <td class="text-end">${day.calories_burned}</td>
+            <td class="text-end">${day.net_calories}</td>
+            <td class="text-end">${day.weight_kg != null ? day.weight_kg : "—"}</td>
+          </tr>`;
+      }).join("");
+
+      const cur = d.this_week.totals, prev = d.last_week.totals;
+      const change = d.this_week.weight_change_kg;
+      document.getElementById("weekCompare").innerHTML = [
+        compareRow("Workouts", cur.workouts_count, prev.workouts_count),
+        compareRow("Active days", cur.active_days, prev.active_days),
+        compareRow("Workout minutes", cur.workout_minutes, prev.workout_minutes),
+        compareRow("Calories burned", cur.calories_burned, prev.calories_burned),
+        `<li class="list-group-item d-flex justify-content-between px-0">
+           <span>Avg kcal/day eaten</span>
+           <strong>${cur.avg_daily_calories_consumed ?? "—"}</strong>
+         </li>`,
+        `<li class="list-group-item d-flex justify-content-between px-0">
+           <span>Weight change</span>
+           <strong>${change != null ? (change > 0 ? "+" : "") + change + " kg" : "—"}</strong>
+         </li>`,
+      ].join("");
+    }
+
+    async function checkProfile() {
+      try {
+        await api("/user/profile");
+      } catch (err) {
+        if (err.status === 404) document.getElementById("profileCard").classList.remove("d-none");
+      }
+    }
+
+    document.getElementById("profileForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        await api("/user/profile", { method: "POST", body: formData(e.target) });
+        document.getElementById("profileCard").classList.add("d-none");
+        showAlert("alert", "Profile saved.", "success");
+      } catch (err) {
+        showAlert("alert", err.message);
+      }
+    });
+
+    checkProfile();
+    loadDashboard().catch(err => showAlert("alert", err.message));
+  </script>
+</body>
+</html>
