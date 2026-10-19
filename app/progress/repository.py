@@ -1,6 +1,6 @@
 from datetime import date
 from fastapi import Depends
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 from app.database.database import get_db
 from app.workouts.models.workout import Workout
@@ -30,6 +30,7 @@ class ProgressRepository():
                 Meal.meal_date.label("day"),
                 func.count(Meal.id).label("count"),
                 func.coalesce(func.sum(Meal.calories), 0).label("calories"),
+                func.coalesce(func.sum(case((Meal.nutrition_accuracy == "verified", Meal.calories), else_=0)), 0).label("verified_calories"),
                 func.coalesce(func.sum(Meal.protein_g), 0).label("protein"),
                 func.coalesce(func.sum(Meal.carbs_g), 0).label("carbs"),
                 func.coalesce(func.sum(Meal.fat_g), 0).label("fat"),

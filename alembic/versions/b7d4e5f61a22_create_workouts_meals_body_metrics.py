@@ -72,7 +72,5 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Downgrade schema."""
     op.drop_table('body_metrics')
-    op.drop_index('ix_meals_user_date', table_name='meals')
     op.drop_table('meals')
-    op.drop_index('ix_workouts_user_date', table_name='workouts')
     op.drop_table('workouts')

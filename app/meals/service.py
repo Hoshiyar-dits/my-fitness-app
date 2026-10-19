@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException
 from app.meals.repository import MealRepository
 
-NOT_NULL_FIELDS = ("meal_date", "meal_type", "name", "calories")
+NOT_NULL_FIELDS = ("meal_date", "meal_type", "name", "calories", "nutrition_accuracy")
 
 class MealService():
     def __init__(self, repository: MealRepository = Depends()):

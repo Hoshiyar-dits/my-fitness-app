@@ -9,6 +9,7 @@ class DailySummary(BaseModel):
     calories_burned: int = 0
     meals_count: int = 0
     calories_consumed: int = 0
+    calories_verified: int = 0  # part of calories_consumed from meals marked verified; the rest are estimates
     protein_g: float = 0
     carbs_g: float = 0
     fat_g: float = 0

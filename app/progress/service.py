@@ -87,6 +87,7 @@ class ProgressService():
             summary = days[row.day]
             summary.meals_count = row.count
             summary.calories_consumed = int(row.calories)
+            summary.calories_verified = int(row.verified_calories)
             summary.protein_g = round(float(row.protein), 1)
             summary.carbs_g = round(float(row.carbs), 1)
             summary.fat_g = round(float(row.fat), 1)

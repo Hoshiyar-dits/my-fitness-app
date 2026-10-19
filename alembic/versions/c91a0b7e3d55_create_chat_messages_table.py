@@ -34,5 +34,4 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.drop_index('ix_chat_messages_user_id', table_name='chat_messages')
     op.drop_table('chat_messages')

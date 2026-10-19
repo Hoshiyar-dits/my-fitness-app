@@ -10,5 +10,6 @@ class BodyMetricResponse(BaseModel):
     log_date: date
     weight_kg: Decimal
     body_fat_pct: Optional[Decimal]
+    body_fat_method: Optional[str]
     created_at: datetime
     updated_at: datetime
